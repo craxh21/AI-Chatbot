@@ -4,6 +4,7 @@ from models.database import db, Conversation, FAQ
 from utils.sanitization import sanitize_input
 from utils.sentiment import analyze_sentiment
 from fuzzywuzzy import process
+from utils.intent_recognition import recognize_intent
 
 app = Flask(__name__)
 
@@ -97,5 +98,30 @@ def sentiment():
     db.session.commit()
 
     return jsonify({"reply": response_text})
+
+@app.route('/intent-recognition', methods=['POST'])
+def intent_recognition():
+    user_input = sanitize_input(request.json.get('message', ''))
+    if not user_input:
+        return jsonify({"reply": "Invalid input. Please try again."})
+
+    # Recognize the user's intent
+    intent = recognize_intent(user_input)
+
+    # Respond based on recognized intent
+    if intent == "greeting":
+        response_text = "Hello! How can I assist you today?"
+    elif intent == "help":
+        response_text = "I can help you with various tasks. What do you need assistance with?"
+    elif intent == "feedback":
+        response_text = "Thank you for your feedback! How can I improve?"
+    elif intent == "farewell":
+        response_text = "Goodbye! Have a great day!"
+    else:
+        response_text = "I'm not sure what you mean. Can you clarify?"
+
+    return jsonify({"intent": intent, "reply": response_text})
+
+
 if __name__ == '__main__':
     app.run(debug=True)
