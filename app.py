@@ -7,6 +7,7 @@ from fuzzywuzzy import process
 from utils.intent_recognition import recognize_intent
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from utils.seggestions import generate_suggestions
 
 app = Flask(__name__)
 CORS(app)  # Allow CORS for the Flask app
@@ -119,6 +120,9 @@ def intent_recognition():
     # Recognize the user's intent
     intent = recognize_intent(user_input)
 
+    # Generate suggestions
+    suggestions = generate_suggestions(intent)
+
     # Respond based on recognized intent
     if intent == "greeting":
         response_text = "Hello! How can I assist you today?"
@@ -131,7 +135,7 @@ def intent_recognition():
     else:
         response_text = "I'm not sure what you mean. Can you clarify?"
 
-    return jsonify({"intent": intent, "reply": response_text})
+    return jsonify({"intent": intent, "reply": response_text, "suggestions": suggestions})
 
 # WebSocket event to handle incoming messages
 @socketio.on('message')

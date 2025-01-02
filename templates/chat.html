@@ -21,7 +21,17 @@
         // Listen for response from the server
         socket.on('response', function(response) {
             const messages = document.getElementById('messages');
-            messages.innerHTML += `<p><strong>Bot:</strong> ${response}</p>`;
+            messages.innerHTML += `<p><strong>Bot:</strong> ${response.reply}</p>`;
+
+            // Display suggestions if available
+            if (response.suggestions && response.suggestions.length > 0) {
+                const suggestionsBox = document.createElement('div');
+                suggestionsBox.innerHTML = `<p><strong>Suggestions:</strong></p>`;
+                response.suggestions.forEach(suggestion => {
+                    suggestionsBox.innerHTML += `<p>➡️ ${suggestion}</p>`;
+                });
+                messages.appendChild(suggestionsBox);
+            }
         });
 
         // Function to send messages to the server
