@@ -13,6 +13,17 @@
         <input type="text" id="user_input" placeholder="Type a message...">
         <button onclick="sendMessage()">Send</button>
     </div>
+    <br><br>
+    <hr>
+    <br><br>
+    <div>
+        <label for="personality">Choose Personality:</label>
+        <select id="personality" onchange="setPersonality()">
+            <option value="friendly">Friendly</option>
+            <option value="formal">Formal</option>
+            <option value="humorous">Humorous</option>
+        </select>
+    </div>
 
     <script>
         // Connect to the SocketIO server
@@ -43,6 +54,18 @@
                 socket.emit('message', user_input);
                 document.getElementById('user_input').value = '';
             }
+        }
+
+        function setPersonality() {
+            const selectedPersonality = document.getElementById('personality').value;
+            fetch('/set-personality', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ personality: selectedPersonality })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(err => console.error('Error:', err));
         }
     </script>
 </body>

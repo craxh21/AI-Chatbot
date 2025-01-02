@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session
 from flask_sqlalchemy import SQLAlchemy
 from models.database import db, Conversation, FAQ
 from utils.sanitization import sanitize_input
@@ -8,12 +8,17 @@ from utils.intent_recognition import recognize_intent
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from utils.seggestions import generate_suggestions
+from flask_session import Session
+from utils.personalities import personalities
 
 app = Flask(__name__)
 CORS(app)  # Allow CORS for the Flask app
 socketio = SocketIO(app, cors_allowed_origins="*")  # Allow CORS for SocketIO on initialization
 # cors_allowed_origins="*": This allows requests from all origins.
 # For stricter security, you can specify a list of allowed origins (e.g., ["http://127.0.0.1:5000", "http://localhost:5000"]).
+app.config['SECRET_KEY'] = 'your_secret_key'  # Required for session to work
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chatbot.db'
 db.init_app(app)
@@ -30,6 +35,38 @@ with app.app_context():
 def index():
     return render_template('chat.html')
     # return "WebSocket-based chat is working!"
+
+@app.route('/set-personality', methods=['POST'])
+def set_personality():
+    # Get the selected personality from user input
+    selected_personality = request.json.get('personality', 'friendly')
+    
+    if selected_personality not in personalities:
+        return jsonify({"error": "Invalid personality selected."}), 400
+    
+    # Store the selected personality in session
+    session['personality'] = selected_personality
+    return jsonify({"message": f"Personality set to {selected_personality}!"})
+
+@app.route('/chat2', methods=['POST'])
+def chat2():
+    user_input = request.json.get('message', '')
+    if not user_input:
+        return jsonify({"reply": "Please provide a message."})
+
+    # Get the current personality (defaults to 'friendly' if not set)
+    current_personality = session.get('personality', 'friendly')
+    personality_responses = personalities.get(current_personality, personalities['friendly'])
+
+    # Example logic to handle different user inputs
+    if "hello" in user_input.lower() or "hi" in user_input.lower():
+        response_text = personality_responses['greeting']
+    elif "bye" in user_input.lower() or "goodbye" in user_input.lower():
+        response_text = personality_responses['farewell']
+    else:
+        response_text = personality_responses['help']
+
+    return jsonify({"reply": response_text})
 
 @app.route('/chat', methods=['POST'])
 def chat():
