@@ -1,12 +1,18 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 from models.database import db, Conversation, FAQ
 from utils.sanitization import sanitize_input
 from utils.sentiment import analyze_sentiment
 from fuzzywuzzy import process
 from utils.intent_recognition import recognize_intent
+from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
+CORS(app)  # Allow CORS for the Flask app
+socketio = SocketIO(app, cors_allowed_origins="*")  # Allow CORS for SocketIO on initialization
+# cors_allowed_origins="*": This allows requests from all origins.
+# For stricter security, you can specify a list of allowed origins (e.g., ["http://127.0.0.1:5000", "http://localhost:5000"]).
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chatbot.db'
 db.init_app(app)
@@ -18,6 +24,11 @@ with app.app_context():
     #     db.session.add(FAQ(question="How does it work?", answer="You ask questions, I respond."))
     #     db.session.commit()
     #     print("FAQ data has been populated.")
+
+@app.route('/')
+def index():
+    return render_template('chat.html')
+    # return "WebSocket-based chat is working!"
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -122,6 +133,34 @@ def intent_recognition():
 
     return jsonify({"intent": intent, "reply": response_text})
 
+# WebSocket event to handle incoming messages
+@socketio.on('message')
+def handle_message(message):
+    print(f"Received message: {message}")  # Debug: Check if the message is being received
+
+    # Sanitize and process the message
+    user_input = sanitize_input(message)
+    if not user_input:
+        emit('response', "Invalid input. Please try again.")
+        return
+    
+    # Recognize intent (reuse the function you created earlier)
+    intent = recognize_intent(user_input)
+
+    # Send a response based on intent
+    if intent == "greeting":
+        response_text = "Hello! How can I assist you today?"
+    elif intent == "help":
+        response_text = "I can help you with various tasks. What do you need assistance with?"
+    elif intent == "feedback":
+        response_text = "Thank you for your feedback! How can I improve?"
+    elif intent == "farewell":
+        response_text = "Goodbye! Have a great day!"
+    else:
+        response_text = "I'm not sure what you mean. Can you clarify?"
+
+    # Emit the response back to the client
+    emit('response', response_text)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    socketio.run(app, debug=True)

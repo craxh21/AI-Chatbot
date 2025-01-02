@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Chat with the Bot</h1>
+    <div id="chatbox">
+        <div id="messages"></div>
+        <input type="text" id="user_input" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        // Connect to the SocketIO server
+        const socket = io.connect('http://localhost:5000');
+
+        // Listen for response from the server
+        socket.on('response', function(response) {
+            const messages = document.getElementById('messages');
+            messages.innerHTML += `<p><strong>Bot:</strong> ${response}</p>`;
+        });
+
+        // Function to send messages to the server
+        function sendMessage() {
+            const user_input = document.getElementById('user_input').value;
+            if (user_input.trim()) {
+                const messages = document.getElementById('messages');
+                messages.innerHTML += `<p><strong>You:</strong> ${user_input}</p>`;
+                socket.emit('message', user_input);
+                document.getElementById('user_input').value = '';
+            }
+        }
+    </script>
+</body>
+</html>
