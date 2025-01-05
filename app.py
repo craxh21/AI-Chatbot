@@ -10,6 +10,8 @@ from flask_socketio import SocketIO, emit
 from utils.seggestions import generate_suggestions
 from flask_session import Session
 from utils.personalities import personalities
+from utils.access_database import search_knowledge_base
+from flask_caching import Cache
 
 app = Flask(__name__)
 CORS(app)  # Allow CORS for the Flask app
@@ -22,6 +24,9 @@ Session(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///chatbot.db'
 db.init_app(app)
+
+# Configure Flask-Caching
+cache = Cache(app, config={'CACHE_TYPE': 'SimpleCache'})
 
 with app.app_context():
     db.create_all()  # Create tables
@@ -48,6 +53,7 @@ def set_personality():
     session['personality'] = selected_personality
     return jsonify({"message": f"Personality set to {selected_personality}!"})
 
+#reply as per the personality user selects 
 @app.route('/chat2', methods=['POST'])
 def chat2():
     user_input = request.json.get('message', '')
@@ -67,6 +73,31 @@ def chat2():
         response_text = personality_responses['help']
 
     return jsonify({"reply": response_text})
+
+@app.route('/search_kb_with_caching', methods =['POST'])
+def search_kb_with_caching():
+    user_input = sanitize_input(request.json.get('message', ''))
+    if not user_input:
+        return jsonify({"reply": "Invalid input. Please try again."})
+
+    #search for cach
+    # Check cache first
+    cached_response = cache.get(user_input)
+    if cached_response:
+        return jsonify({"reply": cached_response})
+
+    #search for the ans in knoledge base
+    kb_ans = search_knowledge_base(user_input)
+    if kb_ans:
+        cache.set(user_input, kb_ans, timeout=300)  # Cache for 5 minutes
+        return jsonify({"reply":kb_ans})
+    
+    # Default response if no match is found
+    default_reply= "I'm sorry, I couldn't find an answer to that. Can you try rephrasing?"
+    cache.set(user_input, default_reply, timeout=300)#Stores the user's input and the default reply in the cache.
+    #If the user asks the same question again, the bot can quickly provide the default reply without re-processing the input.
+    return jsonify({"reply": default_reply})
+
 
 @app.route('/chat', methods=['POST'])
 def chat():
